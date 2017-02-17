@@ -5,12 +5,6 @@
 
 
 #pragma once
-#ifdef PSOEXTREMITIESWIN32_EXPORTS  
-#define PSOEXTREMITIESWIN32_API __declspec(dllexport)   
-#else  
-#define PSOEXTREMITIESWIN32_API __declspec(dllimport)   
-#endif  
-
 #include <cmath>
 #include <valarray>
 #include <random>

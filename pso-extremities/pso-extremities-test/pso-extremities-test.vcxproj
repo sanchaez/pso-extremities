@@ -148,8 +148,8 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="..\pso-extremities-win32\pso.h" />
     <ClInclude Include="external\catch.hpp" />
+    <ClInclude Include="pso.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="testinit.cpp" />

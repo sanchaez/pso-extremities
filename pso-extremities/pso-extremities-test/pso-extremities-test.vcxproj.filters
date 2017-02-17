@@ -18,7 +18,7 @@
     <ClInclude Include="external\catch.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\pso-extremities-win32\pso.h">
+    <ClInclude Include="pso.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
