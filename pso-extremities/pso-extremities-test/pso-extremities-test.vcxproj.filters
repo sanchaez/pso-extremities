@@ -21,6 +21,9 @@
     <ClInclude Include="pso.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="print_helpers.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="unittest.cpp">
