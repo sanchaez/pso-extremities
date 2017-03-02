@@ -15,9 +15,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="external\catch.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="pso.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -27,9 +24,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="unittest.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="testinit.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

@@ -64,7 +64,7 @@ class AbstractPSO {
         m_dimensions_number(boundaries.size()),
         m_particles_number(particles_number),
         m_particles(particles_number),
-        m_function(function){}
+        m_function(function) {}
 
   const int particles_number() { return m_particles_number; }
   const int dimensions_number() { return m_dimensions_number; }
@@ -88,7 +88,7 @@ class AbstractPSO {
 
   void initialize_particles() {
     m_particles.resize(m_particles_number);
-    // init every dimension separately
+// init every dimension separately
 #pragma omp parallel for
     for (int particle = 0; particle < m_particles_number; ++particle) {
       m_particles[particle].x.resize(m_dimensions_number);
@@ -97,21 +97,23 @@ class AbstractPSO {
 #pragma omp parallel for
       for (int dimension = 0; dimension < m_dimensions_number; ++dimension) {
         uniform_distribution_t<value_t> dimension_distribution(
-          m_bounds[dimension].first, m_bounds[dimension].second);
+            m_bounds[dimension].first, m_bounds[dimension].second);
         uniform_distribution_t<value_t> velocity_distribution(
-          0, m_bounds[dimension].second);
+            0, m_bounds[dimension].second);
         m_particles[particle].x[dimension] =
-          dimension_distribution(m_generator);
+            dimension_distribution(m_generator);
         m_particles[particle].v[dimension] = velocity_distribution(m_generator);
         m_particles[particle].best[dimension] =
-          m_particles[particle].x[dimension];
+            m_particles[particle].x[dimension];
       }
     }
   }
 
- virtual value_coordinates_t<value_t> operator()(const int iterations_max) = 0;
+  virtual value_coordinates_t<value_t> operator()(const int iterations_max) = 0;
 
  protected:
+  container_t<value_t> update_function(const value_t& eps1,
+                                       const value_t& eps2) {}
   int m_particles_number;
   int m_dimensions_number;
   function_t<value_t> m_function;
@@ -123,7 +125,6 @@ class AbstractPSO {
   particle_container_t<value_t> m_particles;
 };
 
-/// Original 1995 PSO algorithm
 template <typename value_t>
 class PSOClassic : public AbstractPSO<value_t> {
  public:
@@ -136,9 +137,14 @@ class PSOClassic : public AbstractPSO<value_t> {
         m_particles[i] = update_particle(m_particles[i]);
       }
       update_gbest();
+      if (!(i % 1000)) {
+        std::cout << "On iteration " << i
+                  << " value is: " << m_function(m_gbest) << std::endl;
+      }
     }
     return std::make_pair(m_function(m_gbest), m_gbest);
   }
+
   void initialize_particles() {
     AbstractPSO<value_t>::initialize_particles();
     // init gbest
@@ -164,11 +170,11 @@ class PSOClassic : public AbstractPSO<value_t> {
       eps2[i] = eps_distribution(m_generator);
     }
 
-    // original 1995 formula
     container_t<value_t> new_velocity =
-        p.v + (p.best - p.x) * eps1 * 2.0 + (m_gbest - p.x) * eps2 * 2.0;
-
+        value_t(0.72984) *
+        (p.v + (p.best - p.x) * eps1 * 2.05 + (m_gbest - p.x) * eps2 * 2.05);
 // floor velocity to lowest value
+
 #pragma omp parallel for
     for (int dimension = 0; dimension < m_dimensions_number; ++dimension) {
       auto max_velocity = m_bounds[dimension].first;

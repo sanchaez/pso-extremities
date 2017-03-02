@@ -153,12 +153,10 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="external\catch.hpp" />
     <ClInclude Include="print_helpers.h" />
     <ClInclude Include="pso.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="testinit.cpp" />
     <ClCompile Include="unittest.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
