@@ -6,10 +6,10 @@
 #include <iostream>
 #include <random>
 #include <valarray>
-#include "print_helpers.h"
+
 
 namespace pso {
-using generator_t = std::mt19937;
+using generator_t = std::knuth_b;
 template <typename value_t>
 using container_t = std::valarray<value_t>;
 template <typename value_t>
@@ -94,7 +94,7 @@ class AbstractPSO {
       m_particles[particle].x.resize(m_dimensions_number);
       m_particles[particle].v.resize(m_dimensions_number);
       m_particles[particle].best.resize(m_dimensions_number);
-#pragma omp parallel for
+#pragma omp parallel for schedule(static) ordered
       for (int dimension = 0; dimension < m_dimensions_number; ++dimension) {
         uniform_distribution_t<value_t> dimension_distribution(
             m_bounds[dimension].first, m_bounds[dimension].second);
@@ -112,8 +112,6 @@ class AbstractPSO {
   virtual value_coordinates_t<value_t> operator()(const int iterations_max) = 0;
 
  protected:
-  container_t<value_t> update_function(const value_t& eps1,
-                                       const value_t& eps2) {}
   int m_particles_number;
   int m_dimensions_number;
   function_t<value_t> m_function;
@@ -126,8 +124,9 @@ class AbstractPSO {
 };
 
 template <typename value_t>
-class PSOClassic : public AbstractPSO<value_t> {
- public:
+class PSOClassic : public AbstractPSO<value_t>
+{
+public:
   using AbstractPSO::AbstractPSO;
   value_coordinates_t<value_t> operator()(const int iterations_max) {
     initialize_particles();
@@ -137,10 +136,6 @@ class PSOClassic : public AbstractPSO<value_t> {
         m_particles[i] = update_particle(m_particles[i]);
       }
       update_gbest();
-      if (!(i % 1000)) {
-        std::cout << "On iteration " << i
-                  << " value is: " << m_function(m_gbest) << std::endl;
-      }
     }
     return std::make_pair(m_function(m_gbest), m_gbest);
   }
@@ -152,7 +147,7 @@ class PSOClassic : public AbstractPSO<value_t> {
     update_gbest();
   }
 
- private:
+private:
   Particle<value_t> update_particle(const Particle<value_t>& p) {
     Particle<value_t> new_particle = p;
     container_t<value_t> eps1(m_dimensions_number);
@@ -171,49 +166,24 @@ class PSOClassic : public AbstractPSO<value_t> {
     }
 
     container_t<value_t> new_velocity =
-        value_t(0.72984) *
-        (p.v + (p.best - p.x) * eps1 * 2.05 + (m_gbest - p.x) * eps2 * 2.05);
-// floor velocity to lowest value
+      value_t(0.72984) *
+      (p.v + (p.best - p.x) * eps1 * 2.05 + (m_gbest - p.x) * eps2 * 2.05);
+      new_particle.v = new_velocity;
+      new_particle.x += new_velocity;
 
-#pragma omp parallel for
-    for (int dimension = 0; dimension < m_dimensions_number; ++dimension) {
-      auto max_velocity = m_bounds[dimension].first;
-      {
-        auto temp_min = m_bounds[dimension].first;
-        auto temp_max = m_bounds[dimension].second;
-        if (temp_min < 0) {
-          if (temp_max >= 0) {
-            auto temp_min_abs = abs(temp_min);
-            if (temp_max > temp_min) {
-              max_velocity = temp_min_abs;
-            } else {
-              max_velocity = temp_max;
-            }
-          } else {
-            max_velocity = abs(temp_max);
-          }
+      if (m_compare(m_function(new_particle.x), m_function(new_particle.best))) {
+        new_particle.best = new_particle.x;
+      }
+      return new_particle;
+    }
+
+    void update_gbest() {
+      for (auto it = std::begin(m_particles); it != std::end(m_particles); ++it) {
+        if (m_compare(m_function((*it).best), m_function(m_gbest))) {
+          m_gbest = (*it).best;
         }
       }
-      if (new_velocity[dimension] > (max_velocity / 2)) {
-        new_velocity[dimension] = max_velocity;
-      }
     }
-    new_particle.v = new_velocity;
-    new_particle.x += new_velocity;
-
-    if (m_compare(m_function(new_particle.x), m_function(new_particle.best))) {
-      new_particle.best = new_particle.x;
-    }
-    return new_particle;
-  }
-
-  void update_gbest() {
-    for (auto it = std::begin(m_particles); it != std::end(m_particles); ++it) {
-      if (m_compare(m_function((*it).best), m_function(m_gbest))) {
-        m_gbest = (*it).best;
-      }
-    }
-  }
-  container_t<value_t> m_gbest;
-};
+    container_t<value_t> m_gbest;
+  };
 }

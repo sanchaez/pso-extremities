@@ -69,10 +69,9 @@ void unified_bounds_swarm_test(
   pso::container_t<double> results(tests_number);
 #pragma omp parallel for schedule(static) ordered
   for (int i = 0; i < tests_number; ++i) {
-    std::cout << " Run #" << i;
     results[i] = particle_swarm(iterations_number).first;
 #pragma omp ordered
-    std::cout << " = " << results[i] << "\n";
+    std::cout << " Run #" << i << " = " << results[i] << "\n";
   }
   // determine best
   double results_best = results.min();
