@@ -23,7 +23,7 @@ TEST_CASE("Dummy", "[dummy]") {
   auto test_bounds = pso::unified_bounds<double>(-100, 100, test_dimensions);
 
   pso::PSOClassic<double> test_particle_swarm(minimum, test_particle_size,
-                                              test_bounds);
+                                              test_bounds, spherefunction);
   SECTION("Creating PSOClassic object") {
     REQUIRE(test_particle_swarm.particles_number() == test_particle_size);
     REQUIRE(test_particle_swarm.dimensions_number() == test_dimensions);
@@ -32,7 +32,7 @@ TEST_CASE("Dummy", "[dummy]") {
   }
   SECTION("Testing operator") {
     auto iterations_number = test_dimensions * 10000;
-    auto x = test_particle_swarm(iterations_number, spherefunction);
+    auto x = test_particle_swarm(iterations_number);
     INFO("Value :");
     CAPTURE(x.first);
     INFO("Coordinates :");
