@@ -42,8 +42,8 @@ double rosenbrockfunction(pso::container_t<double> x) {
   double sum = 0.0;
 #pragma omp parallel for schedule(static) ordered
   for (int i = 0; i < x.size() - 1; ++i) {
-    sum +=
-        100 * std::pow((x[i + 1] - x[i] * x[i]), 2.0) + (x[i] - 1) * (x[i] - 1);
+    auto c = (x[i + 1] - x[i] * x[i]);
+    sum += 100 * c * c + (x[i] - 1) * (x[i] - 1);
   }
   return sum;
 }
@@ -59,7 +59,8 @@ void unified_bounds_swarm_test(
     const pso::function_t<double>& function,
     const pso::predicate_t<double>& predicate = minimum) {
   auto bounds = pso::unified_bounds(bounds_low, bounds_high, particle_size);
-  std::cout << "~~~ Testing " << test_name << "~~~\n Particles: " << particle_size
+  std::cout << "~~~ Testing " << test_name
+            << " ~~~\n Particles: " << particle_size
             << "\n Dimensions: " << dimensions
             << "\n Iterations: " << iterations_number << "\n\nRunning tests:\n";
 
@@ -67,12 +68,10 @@ void unified_bounds_swarm_test(
                                          function);
 
   pso::container_t<double> results(tests_number);
-#pragma omp parallel for schedule(static) ordered
   for (int i = 0; i < tests_number; ++i) {
-    std::cout << " Run #" << i;
+    std::cout << " Run # " << i + 1 << " = ";
     results[i] = particle_swarm(iterations_number).first;
-#pragma omp ordered
-    std::cout << " = " << results[i] << "\n";
+    std::cout << results[i] << "\n";
   }
   // determine best
   double results_best = results.min();
@@ -83,16 +82,17 @@ void unified_bounds_swarm_test(
                    sqrt(tests_number);
   std::cout << "\n\nResults:"
             << "\n Runs: " << tests_number << "\n Best: " << results_best
-            << "\n Worst: " << results_worst << "\n Average: " << results_average
-            << "\n Std Err: " << std_err << std::endl
+            << "\n Worst: " << results_worst
+            << "\n Average: " << results_average << "\n Std Err: " << std_err
+            << std::endl
             << std::endl;
 }
 
 int main() {
-  std::cout << "Test begin.\n\n";
+  std::cout << "Test begin.\nNote: some functions can be very slow!\n\n";
   // different functions have different tests
   auto tests_number = 30;
-  auto iterations_number = 30000;
+  auto iterations_number = 10000;
   auto particle_size = 50;
   // sphere
   unified_bounds_swarm_test("sphere", particle_size, iterations_number,

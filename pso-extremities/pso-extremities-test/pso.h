@@ -9,7 +9,7 @@
 
 
 namespace pso {
-using generator_t = std::knuth_b;
+using generator_t = std::mt19937_64;
 template <typename value_t>
 using container_t = std::valarray<value_t>;
 template <typename value_t>
@@ -94,7 +94,7 @@ class AbstractPSO {
       m_particles[particle].x.resize(m_dimensions_number);
       m_particles[particle].v.resize(m_dimensions_number);
       m_particles[particle].best.resize(m_dimensions_number);
-#pragma omp parallel for schedule(static) ordered
+#pragma omp parallel for
       for (int dimension = 0; dimension < m_dimensions_number; ++dimension) {
         uniform_distribution_t<value_t> dimension_distribution(
             m_bounds[dimension].first, m_bounds[dimension].second);
