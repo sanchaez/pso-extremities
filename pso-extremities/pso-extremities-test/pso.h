@@ -7,7 +7,6 @@
 #include <random>
 #include <valarray>
 
-
 namespace pso {
 using generator_t = std::mt19937_64;
 template <typename value_t>
@@ -89,22 +88,29 @@ class AbstractPSO {
   void initialize_particles() {
     m_particles.resize(m_particles_number);
 // init every dimension separately
-#pragma omp parallel for
-    for (int particle = 0; particle < m_particles_number; ++particle) {
-      m_particles[particle].x.resize(m_dimensions_number);
-      m_particles[particle].v.resize(m_dimensions_number);
-      m_particles[particle].best.resize(m_dimensions_number);
-#pragma omp parallel for
-      for (int dimension = 0; dimension < m_dimensions_number; ++dimension) {
-        uniform_distribution_t<value_t> dimension_distribution(
-            m_bounds[dimension].first, m_bounds[dimension].second);
-        uniform_distribution_t<value_t> velocity_distribution(
-            0, m_bounds[dimension].second);
-        m_particles[particle].x[dimension] =
-            dimension_distribution(m_generator);
-        m_particles[particle].v[dimension] = velocity_distribution(m_generator);
-        m_particles[particle].best[dimension] =
-            m_particles[particle].x[dimension];
+#pragma omp parallel
+    {
+#pragma omp for
+      for (int particle = 0; particle < m_particles_number; ++particle) {
+        m_particles[particle].x.resize(m_dimensions_number);
+        m_particles[particle].v.resize(m_dimensions_number);
+        m_particles[particle].best.resize(m_dimensions_number);
+      }
+
+      for (int particle = 0; particle < m_particles_number; ++particle) {
+#pragma omp for schedule(dynamic)
+        for (int dimension = 0; dimension < m_dimensions_number; ++dimension) {
+          uniform_distribution_t<value_t> dimension_distribution(
+              m_bounds[dimension].first, m_bounds[dimension].second);
+          uniform_distribution_t<value_t> velocity_distribution(
+              0, m_bounds[dimension].second);
+          m_particles[particle].x[dimension] =
+              dimension_distribution(m_generator);
+          m_particles[particle].v[dimension] =
+              velocity_distribution(m_generator);
+          m_particles[particle].best[dimension] =
+              m_particles[particle].x[dimension];
+        }
       }
     }
   }
@@ -124,66 +130,92 @@ class AbstractPSO {
 };
 
 template <typename value_t>
-class PSOClassic : public AbstractPSO<value_t>
-{
-public:
-  using AbstractPSO::AbstractPSO;
+class PSOClassic : public AbstractPSO<value_t> {
+ public:
+  PSOClassic(const predicate_t<value_t>& predicate,
+             const int particles_number,
+             const dimention_container_t<value_t>& boundaries,
+             const function_t<value_t>& function)
+      : AbstractPSO(predicate, particles_number, boundaries, function),
+        eps1(value_t(0), m_dimensions_number),
+        eps2(eps1),
+        eps_distribution(0, 1) {}
+
   value_coordinates_t<value_t> operator()(const int iterations_max) {
     initialize_particles();
-    for (int i = 0; i < iterations_max; ++i) {
-#pragma omp parallel for
-      for (int i = 0; i < m_particles_number; ++i) {
-        m_particles[i] = update_particle(m_particles[i]);
+#pragma omp parallel
+    {
+      for (int i = 0; i < iterations_max; ++i) {
+#pragma omp for schedule(dynamic)
+        for (int j = 0; j < m_particles_number; ++j) {
+          m_particles[j] = update_particle(m_particles[j]);
+        }
+#pragma omp single
+        update_gbest();
       }
-      update_gbest();
     }
     return std::make_pair(m_function(m_gbest), m_gbest);
   }
 
   void initialize_particles() {
-    AbstractPSO<value_t>::initialize_particles();
+    AbstractPSO::initialize_particles();
     // init gbest
     m_gbest = m_particles[0].x;
     update_gbest();
   }
 
-private:
+ private:
   Particle<value_t> update_particle(const Particle<value_t>& p) {
-    Particle<value_t> new_particle = p;
-    container_t<value_t> eps1(m_dimensions_number);
-    container_t<value_t> eps2(m_dimensions_number);
+    Particle<value_t> new_particle;
 
-    uniform_distribution_t<value_t> eps_distribution(0, 1);
-    eps_distribution.reset();
-#pragma omp parallel for
-    for (int i = 0; i < m_dimensions_number; ++i) {
-      eps1[i] = eps_distribution(m_generator);
-    }
-    eps_distribution.reset();
-#pragma omp parallel for
-    for (int i = 0; i < m_dimensions_number; ++i) {
-      eps2[i] = eps_distribution(m_generator);
-    }
+#pragma omp parallel
+    {
+#pragma omp single
+      { eps_distribution.reset(); }
 
-    container_t<value_t> new_velocity =
-      value_t(0.72984) *
-      (p.v + (p.best - p.x) * eps1 * 2.05 + (m_gbest - p.x) * eps2 * 2.05);
-      new_particle.v = new_velocity;
-      new_particle.x += new_velocity;
-
-      if (m_compare(m_function(new_particle.x), m_function(new_particle.best))) {
-        new_particle.best = new_particle.x;
+#pragma omp for nowait
+      for (int i = 0; i < m_dimensions_number; ++i) {
+        eps1[i] = eps_distribution(m_generator);
       }
-      return new_particle;
-    }
 
-    void update_gbest() {
-      for (auto it = std::begin(m_particles); it != std::end(m_particles); ++it) {
-        if (m_compare(m_function((*it).best), m_function(m_gbest))) {
-          m_gbest = (*it).best;
+#pragma omp for nowait
+      for (int i = 0; i < m_dimensions_number; ++i) {
+        eps2[i] = eps_distribution(m_generator);
+      }
+
+#pragma omp barrier
+
+#pragma omp single
+      {
+        container_t<value_t> new_velocity =
+            value_t(0.72984) * (p.v + (p.best - p.x) * eps1 * 2.05 +
+                                (m_gbest - p.x) * eps2 * 2.05);
+        new_particle.v = new_velocity;
+        new_particle.x = new_velocity + p.x;
+
+        if (m_compare(m_function(new_particle.x), m_function(p.best))) {
+          new_particle.best = new_particle.x;
+        } else {
+          new_particle.best = p.best;
         }
       }
     }
-    container_t<value_t> m_gbest;
-  };
+    return new_particle;
+  }
+
+  void update_gbest() {
+#pragma omp parallel for
+    for (int i = 0; i < m_particles_number; ++i) {
+      if (m_compare(m_function(m_particles[i].best), m_function(m_gbest))) {
+#pragma omp critical
+        { m_gbest = m_particles[i].best; }
+      }
+    }
+  }
+
+  container_t<value_t> eps1;
+  container_t<value_t> eps2;
+  uniform_distribution_t<value_t> eps_distribution;
+  container_t<value_t> m_gbest;
+};
 }

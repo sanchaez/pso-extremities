@@ -8,39 +8,34 @@ constexpr bool minimum(double a1, double a2) {
   return a1 < a2;
 }
 
-double spherefunction(pso::container_t<double> x) {
+double spherefunction(const pso::container_t<double>& x) {
   return (x * x).sum();
 }
 
-double ackleyfunction(pso::container_t<double> x) {
-  const double d = double(x.size());
+double ackleyfunction(const pso::container_t<double>& x) {
+  const double d_inv = 1.0/ double(x.size());
   const double a = 20.0;
-  const double b = 0.2;
-  const double c = M_PI * 2.0;
-  const double cubic_sum = std::pow(x, 2.0).sum();
-  const double first_arg = a * std::exp(-b * std::sqrt((1.0 / d) * cubic_sum));
-  const double cos_sum = std::cos(c * x).sum();
-  const double second_arg = std::exp(1.0 / d * cos_sum);
-  return (-first_arg - second_arg + a + M_E);
+  return (-a * std::exp(-0.2 * std::sqrt(d_inv * (x * x).sum())) -
+          std::exp(d_inv * std::cos(M_PI * 2.0 * x).sum()) + a + M_E);
 }
 
-double griewankfunction(pso::container_t<double> x) {
-  const double sum = std::pow(x, 2.0).sum() / 4000.0;
+double griewankfunction(const pso::container_t<double>& x) {
+  const double sum = (x*x).sum() / 4000.0;
   double product = 1.0;
-#pragma omp parallel for schedule(static) ordered
+#pragma omp parallel for reduction(*:product)
   for (int i = 0; i < x.size(); ++i) {
     product *= std::cos(x[i] / double(i + 1));
   }
   return sum - product + 1;
 }
 
-double rastriginfunction(pso::container_t<double> x) {
+double rastriginfunction(const pso::container_t<double>& x) {
   return 10.0 * x.size() + (x * x - 10.0 * std::cos(2 * M_PI * x)).sum();
 }
 
-double rosenbrockfunction(pso::container_t<double> x) {
+double rosenbrockfunction(const pso::container_t<double> x) {
   double sum = 0.0;
-#pragma omp parallel for schedule(static) ordered
+#pragma omp parallel for reduction(+:sum)
   for (int i = 0; i < x.size() - 1; ++i) {
     auto c = (x[i + 1] - x[i] * x[i]);
     sum += 100 * c * c + (x[i] - 1) * (x[i] - 1);
@@ -69,9 +64,9 @@ void unified_bounds_swarm_test(
 
   pso::container_t<double> results(tests_number);
   for (int i = 0; i < tests_number; ++i) {
-    std::cout << " Run # " << i + 1 << " = ";
+    std::cout << " Run # " << i + 1 << " = " ;
     results[i] = particle_swarm(iterations_number).first;
-    std::cout << results[i] << "\n";
+    std::cout << results[i] << '\n';
   }
   // determine best
   double results_best = results.min();
@@ -84,7 +79,7 @@ void unified_bounds_swarm_test(
             << "\n Runs: " << tests_number << "\n Best: " << results_best
             << "\n Worst: " << results_worst
             << "\n Average: " << results_average << "\n Std Err: " << std_err
-            << std::endl
+            << '\n'
             << std::endl;
 }
 
