@@ -8,7 +8,7 @@
 #include <valarray>
 
 namespace pso {
-using generator_t = std::mt19937_64;
+using generator_t = std::mt19937;
 template <typename value_t>
 using container_t = std::valarray<value_t>;
 template <typename value_t>
@@ -51,13 +51,14 @@ struct Particle {
 template <typename value_t>
 using particle_container_t = container_t<Particle<value_t>>;
 /// Abstract class for all particle swarms
+
 template <typename value_t>
-class AbstractPSO {
+class BasePSO {
  public:
-  AbstractPSO(const predicate_t<value_t>& predicate,
-              const int particles_number,
-              const dimention_container_t<value_t>& boundaries,
-              const function_t<value_t>& function)
+  BasePSO(const predicate_t<value_t>& predicate,
+          const int particles_number,
+          const dimention_container_t<value_t>& boundaries,
+          const function_t<value_t>& function)
       : m_bounds(boundaries),
         m_compare(predicate),
         m_dimensions_number(boundaries.size()),
@@ -85,7 +86,20 @@ class AbstractPSO {
     m_particles_number = particles_number;
   }
 
-  void initialize_particles() {
+ protected:
+  int m_particles_number;
+  int m_dimensions_number;
+  function_t<value_t> m_function;
+  predicate_t<value_t> m_compare;
+  dimention_container_t<value_t> m_bounds;
+  particle_container_t<value_t> m_particles;
+};
+
+template <typename value_t>
+class AbstractPSO : public BasePSO<value_t> {
+ public:
+  using BasePSO::BasePSO;
+  virtual void initialize_particles() {
     m_particles.resize(m_particles_number);
 // init every dimension separately
 #pragma omp parallel
@@ -118,24 +132,16 @@ class AbstractPSO {
   virtual value_coordinates_t<value_t> operator()(const int iterations_max) = 0;
 
  protected:
-  int m_particles_number;
-  int m_dimensions_number;
-  function_t<value_t> m_function;
-  predicate_t<value_t> m_compare;
   generator_t m_generator;
-  container_t<value_t> m_gbest;
-
-  dimention_container_t<value_t> m_bounds;
-  particle_container_t<value_t> m_particles;
 };
 
 template <typename value_t>
-class PSOClassic : public AbstractPSO<value_t> {
+class ClassicGbestPSO : public AbstractPSO<value_t> {
  public:
-  PSOClassic(const predicate_t<value_t>& predicate,
-             const int particles_number,
-             const dimention_container_t<value_t>& boundaries,
-             const function_t<value_t>& function)
+  ClassicGbestPSO(const predicate_t<value_t>& predicate,
+                  const int particles_number,
+                  const dimention_container_t<value_t>& boundaries,
+                  const function_t<value_t>& function)
       : AbstractPSO(predicate, particles_number, boundaries, function),
         eps1(value_t(0), m_dimensions_number),
         eps2(eps1),
@@ -167,12 +173,9 @@ class PSOClassic : public AbstractPSO<value_t> {
  private:
   Particle<value_t> update_particle(const Particle<value_t>& p) {
     Particle<value_t> new_particle;
-
+    eps_distribution.reset();
 #pragma omp parallel
     {
-#pragma omp single
-      { eps_distribution.reset(); }
-
 #pragma omp for nowait
       for (int i = 0; i < m_dimensions_number; ++i) {
         eps1[i] = eps_distribution(m_generator);
@@ -182,24 +185,18 @@ class PSOClassic : public AbstractPSO<value_t> {
       for (int i = 0; i < m_dimensions_number; ++i) {
         eps2[i] = eps_distribution(m_generator);
       }
-
 #pragma omp barrier
-
-#pragma omp single
-      {
-        container_t<value_t> new_velocity =
-            value_t(0.72984) * (p.v + (p.best - p.x) * eps1 * 2.05 +
-                                (m_gbest - p.x) * eps2 * 2.05);
-        new_particle.v = new_velocity;
-        new_particle.x = new_velocity + p.x;
-
-        if (m_compare(m_function(new_particle.x), m_function(p.best))) {
-          new_particle.best = new_particle.x;
-        } else {
-          new_particle.best = p.best;
-        }
-      }
     }
+
+    new_particle.v = value_t(0.72984) * (p.v + (p.best - p.x) * eps1 * 2.05 +
+                                         (m_gbest - p.x) * eps2 * 2.05);
+    new_particle.x = new_particle.v + p.x;
+    if (m_compare(m_function(new_particle.x), m_function(p.best))) {
+      new_particle.best = new_particle.x;
+    } else {
+      new_particle.best = p.best;
+    }
+
     return new_particle;
   }
 
