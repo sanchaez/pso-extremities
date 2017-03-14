@@ -18,6 +18,8 @@ using dimention_container_t = container_t<dimension_limit_t<value_t>>;
 template <typename value_t>
 using predicate_t = std::function<bool(value_t, value_t)>;
 template <typename value_t>
+using stop_predicate_t = std::function<bool(value_t)>;
+template <typename value_t>
 using function_t = std::function<value_t(container_t<value_t>)>;
 template <typename value_t>
 using value_coordinates_t = std::pair<value_t, container_t<value_t>>;
@@ -40,12 +42,16 @@ dimention_container_t<value_t> unified_bounds(const value_t left_bound,
 
 template <typename value_t>
 struct Particle {
-  Particle() : v(0), x(0), best(0) {}
+  Particle() : v(0), x(0), best(0), best_ever(0) {}
   Particle(const container_t<value_t>& coordinates, const value_t& velocity)
-      : x(coordinates), best(coordinates), v(velocity) {}
+      : x(coordinates),
+        best(coordinates),
+        best_ever(coordinates),
+        v(velocity) {}
   container_t<value_t> v;
   container_t<value_t> x;
   container_t<value_t> best;
+  container_t<value_t> best_ever;
 };
 
 template <typename value_t>
@@ -87,6 +93,10 @@ class BasePSO {
   }
 
  protected:
+  inline bool compare_coordinates(const container_t<value_t>& a,
+                                  const container_t<value_t>& b) {
+    return m_compare(m_function(a), m_function(b));
+  }
   int m_particles_number;
   int m_dimensions_number;
   function_t<value_t> m_function;
@@ -157,7 +167,7 @@ class ClassicGbestPSO : public AbstractPSO<value_t> {
           m_particles[j] = update_particle(m_particles[j]);
         }
 #pragma omp single
-        update_gbest();
+        update_best_ever();
       }
     }
     return std::make_pair(m_function(m_gbest), m_gbest);
@@ -167,7 +177,7 @@ class ClassicGbestPSO : public AbstractPSO<value_t> {
     AbstractPSO::initialize_particles();
     // init gbest
     m_gbest = m_particles[0].x;
-    update_gbest();
+    update_best_ever();
   }
 
  private:
@@ -185,13 +195,14 @@ class ClassicGbestPSO : public AbstractPSO<value_t> {
       for (int i = 0; i < m_dimensions_number; ++i) {
         eps2[i] = eps_distribution(m_generator);
       }
+
 #pragma omp barrier
     }
 
     new_particle.v = value_t(0.72984) * (p.v + (p.best - p.x) * eps1 * 2.05 +
                                          (m_gbest - p.x) * eps2 * 2.05);
     new_particle.x = new_particle.v + p.x;
-    if (m_compare(m_function(new_particle.x), m_function(p.best))) {
+    if (compare_coordinates(new_particle.x, p.best)) {
       new_particle.best = new_particle.x;
     } else {
       new_particle.best = p.best;
@@ -200,10 +211,10 @@ class ClassicGbestPSO : public AbstractPSO<value_t> {
     return new_particle;
   }
 
-  void update_gbest() {
+  void update_best_ever() {
 #pragma omp parallel for
     for (int i = 0; i < m_particles_number; ++i) {
-      if (m_compare(m_function(m_particles[i].best), m_function(m_gbest))) {
+      if (compare_coordinates(m_particles[i].best, m_gbest)) {
 #pragma omp critical
         { m_gbest = m_particles[i].best; }
       }
