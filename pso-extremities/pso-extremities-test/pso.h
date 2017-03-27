@@ -72,31 +72,31 @@ class BasePSO {
         m_particles(particles_number),
         m_function(function) {}
 
-  const int particles_number() { return m_particles_number; }
-  const int dimensions_number() { return m_dimensions_number; }
-  const function_t<value_t> function() { return m_function; }
-  const predicate_t<value_t> predicate() { return m_compare; }
-  const dimention_container_t<value_t> bounds() { return m_bounds; }
-
-  void set_predicate(const predicate_t<value_t>& predicate) {
-    m_compare = predicate;
-  }
-  void set_function(const function_t<value_t>& function) {
-    m_function = function;
-  }
-  void set_bounds(const dimention_container_t<value_t>& bounds) {
-    m_bounds = bounds;
-    m_dimensions_number = bounds.size();
-  }
-  void set_particles_number(const int& particles_number) {
-    m_particles_number = particles_number;
-  }
-
  protected:
-  inline bool compare_coordinates(const container_t<value_t>& a,
-                                  const container_t<value_t>& b) {
+  inline constexpr bool compare_function_values(const container_t<value_t>& a,
+                                            const container_t<value_t>& b) const {
     return m_compare(m_function(a), m_function(b));
   }
+  bool in_bounds(container_t<value_t>& point_coordinates) {
+    for (int i = 0; i < m_dimensions_number; ++i) {
+      if (m_bounds[i].first > point_coordinates[i] ||
+          m_bounds[i].second < point_coordinates[i]) {
+        return false;
+      }
+    }
+    return true;
+  }
+  // checks if point is in bounds and retuns it to the edge
+  void bounds_return(container_t<value_t>& point_coordinates) {
+    for (int i = 0; i < m_dimensions_number; ++i) {
+      if (m_bounds[i].first > point_coordinates[i]) {
+        point_coordinates[i] = m_bounds[i].first;
+      } else if (m_bounds[i].second < point_coordinates[i]) {
+        point_coordinates[i] = m_bounds[i].second;
+      }
+    }
+  }
+
   int m_particles_number;
   int m_dimensions_number;
   function_t<value_t> m_function;
@@ -108,7 +108,7 @@ class BasePSO {
 template <typename value_t>
 class AbstractPSO : public BasePSO<value_t> {
  public:
-  using BasePSO::BasePSO;
+  using BasePSO<value_t>::BasePSO;
   virtual void initialize_particles() {
     m_particles.resize(m_particles_number);
 // init every dimension separately
@@ -152,7 +152,7 @@ class ClassicGbestPSO : public AbstractPSO<value_t> {
                   const int particles_number,
                   const dimention_container_t<value_t>& boundaries,
                   const function_t<value_t>& function)
-      : AbstractPSO(predicate, particles_number, boundaries, function),
+      : AbstractPSO<value_t>(predicate, particles_number, boundaries, function),
         eps1(value_t(0), m_dimensions_number),
         eps2(eps1),
         eps_distribution(0, 1) {}
@@ -202,7 +202,7 @@ class ClassicGbestPSO : public AbstractPSO<value_t> {
     new_particle.v = value_t(0.72984) * (p.v + (p.best - p.x) * eps1 * 2.05 +
                                          (m_gbest - p.x) * eps2 * 2.05);
     new_particle.x = new_particle.v + p.x;
-    if (compare_coordinates(new_particle.x, p.best)) {
+    if (compare_function_values(new_particle.x, p.best)) {
       new_particle.best = new_particle.x;
     } else {
       new_particle.best = p.best;
@@ -214,7 +214,7 @@ class ClassicGbestPSO : public AbstractPSO<value_t> {
   void update_best_ever() {
 #pragma omp parallel for
     for (int i = 0; i < m_particles_number; ++i) {
-      if (compare_coordinates(m_particles[i].best, m_gbest)) {
+      if (compare_function_values(m_particles[i].best, m_gbest)) {
 #pragma omp critical
         { m_gbest = m_particles[i].best; }
       }

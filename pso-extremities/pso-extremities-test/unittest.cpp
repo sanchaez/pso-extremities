@@ -18,7 +18,7 @@ double spherefunction(const pso::container_t<double>& x) {
 }
 
 double ackleyfunction(const pso::container_t<double>& x) {
-  const double n = x.size();
+  const double n = double(x.size());
   const double first_sum =
       -20.0 * std::exp(-0.2 * std::sqrt((x * x).sum() / n));
   const double second_sum =
@@ -153,21 +153,21 @@ void whole_test(const std::string& test_class_name,
       spherefunction, minimum, test_class_name);
 
   // ackley
-  unified_bounds_swarm_test<PSOClass>(
-      "ackley", particle_size, ackley_iterations, tests_number, 20, -32.768,
-      32.768, ackleyfunction, minimum, test_class_name);
+  //unified_bounds_swarm_test<PSOClass>(
+  //    "ackley", particle_size, ackley_iterations, tests_number, 20, -32.768,
+  //    32.768, ackleyfunction, minimum, test_class_name);
   // griewank
-  unified_bounds_swarm_test<PSOClass>(
-      "griewank", particle_size, griewank_iterations, tests_number, 50, -600,
-      600, griewankfunction, minimum, test_class_name);
+  //unified_bounds_swarm_test<PSOClass>(
+   //   "griewank", particle_size, griewank_iterations, tests_number, 50, -600,
+  //    600, griewankfunction, minimum, test_class_name);
   // rastrigin
-  unified_bounds_swarm_test<PSOClass>(
-      "rastrigin", particle_size, rastrigin_iterations, tests_number, 30, -5.12,
-      5.12, rastriginfunction, minimum, test_class_name);
+  //unified_bounds_swarm_test<PSOClass>(
+  //    "rastrigin", particle_size, rastrigin_iterations, tests_number, 30, -5.12,
+  //    5.12, rastriginfunction, minimum, test_class_name);
   // rosenbrock
-  unified_bounds_swarm_test<PSOClass>(
-      "rosenbrock", particle_size, rosenbrock_iterations, tests_number, 30, -5,
-      10, rosenbrockfunction, minimum, test_class_name);
+  //unified_bounds_swarm_test<PSOClass>(
+  //   "rosenbrock", particle_size, rosenbrock_iterations, tests_number, 30, -5,
+  //    10, rosenbrockfunction, minimum, test_class_name);
   auto end = std::chrono::steady_clock::now();
   auto time_span = end - start;
   auto s = std::chrono::duration_cast<std::chrono::seconds>(time_span).count();
@@ -177,14 +177,14 @@ void whole_test(const std::string& test_class_name,
             << std::endl;
 }
 
-int main() {
+int _cdecl main() {
   std::cout << "Test begin.\n\n";
   // different functions have different tests
   auto tests_number = 10;
   auto particle_size = 30;
-  // whole_test<pso::ClassicGbestPSO<double>, 5000, 10000, 10000, 10000, 10000>(
-  //    "with std random - gbest p" + std::to_string(particle_size),
-  //    tests_number, particle_size);
+  whole_test<pso::ClassicGbestPSO<double>, 5000, 10000, 10000, 10000, 10000>(
+      "with std random - gbest p" + std::to_string(particle_size), tests_number,
+      particle_size);
   whole_test<pso::ClassicGbestMKLPSO, 5000, 10000, 10000, 10000, 10000>(
       "with MKL - gbest p" + std::to_string(particle_size), tests_number,
       particle_size);
@@ -192,4 +192,5 @@ int main() {
   //    "with MKL - lbest p" + std::to_string(particle_size), tests_number,
   //    particle_size);
   std::cout << "Test end.\n";
+  return 0;
 }

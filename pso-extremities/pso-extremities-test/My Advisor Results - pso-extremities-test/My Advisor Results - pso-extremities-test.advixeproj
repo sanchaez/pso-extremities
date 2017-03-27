@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root>
+ <connectionOption>localhost</connectionOption>
+ <rdmgr>
+  <timestamp type="u64_t">1490173224</timestamp>
+  <hostname>WIN-0UHT10KTD1R</hostname>
+  <os>windows</os>
+  <product>Intel® Advisor 2017 Update 2</product>
+  <buildNumber type="s32_t">501009</buildNumber>
+  <logicalCPUCount type="s32_t">4</logicalCPUCount>
+  <CPUFrequency type="s64_t">2494000000</CPUFrequency>
+  <CPUFamily type="s32_t">6</CPUFamily>
+  <CPUModel type="s32_t">58</CPUModel>
+  <CPUStepping type="s32_t">9</CPUStepping>
+  <CPUBrandName>       Intel(R) Core(TM) i3-3120M CPU @ 2.50GHz</CPUBrandName>
+  <isa>avx</isa>
+ </rdmgr>
+ <contextValues type="bag"/>
+ <All_Configurations-All_Platforms>
+  <per_group_workloads>
+   <release>release</release>
+  </per_group_workloads>
+ </All_Configurations-All_Platforms>
+</root>
