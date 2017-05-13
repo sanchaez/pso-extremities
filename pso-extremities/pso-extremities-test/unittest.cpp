@@ -135,6 +135,8 @@ void unified_bounds_swarm_test(
   test_file.close();
 }
 
+enum test_cases { AllTests, Sphere, Ackley, Griewank, Rastrigin, Rosenbrock };
+
 template <class PSOClass,
           int sphere_iterations,
           int ackley_iterations,
@@ -142,32 +144,36 @@ template <class PSOClass,
           int rastrigin_iterations,
           int rosenbrock_iterations>
 void whole_test(const std::string& test_class_name,
+                test_cases tests_to_run,
                 int tests_number,
                 const int particle_size) {
   std::cout << "** Testing class " << test_class_name << " ***\n";
   auto start = std::chrono::steady_clock::now();
-
-  // sphere
-  unified_bounds_swarm_test<PSOClass>(
-      "sphere", particle_size, sphere_iterations, tests_number, 50, -100, 100,
-      spherefunction, minimum, test_class_name);
-
-  // ackley
-  //unified_bounds_swarm_test<PSOClass>(
-  //    "ackley", particle_size, ackley_iterations, tests_number, 20, -32.768,
-  //    32.768, ackleyfunction, minimum, test_class_name);
-  // griewank
-  //unified_bounds_swarm_test<PSOClass>(
-   //   "griewank", particle_size, griewank_iterations, tests_number, 50, -600,
-  //    600, griewankfunction, minimum, test_class_name);
-  // rastrigin
-  //unified_bounds_swarm_test<PSOClass>(
-  //    "rastrigin", particle_size, rastrigin_iterations, tests_number, 30, -5.12,
-  //    5.12, rastriginfunction, minimum, test_class_name);
-  // rosenbrock
-  //unified_bounds_swarm_test<PSOClass>(
-  //   "rosenbrock", particle_size, rosenbrock_iterations, tests_number, 30, -5,
-  //    10, rosenbrockfunction, minimum, test_class_name);
+  if ((tests_to_run == AllTests) || (tests_to_run & Sphere)) {
+    unified_bounds_swarm_test<PSOClass>(
+        "sphere", particle_size, sphere_iterations, tests_number, 50, -100, 100,
+        spherefunction, minimum, test_class_name);
+  }
+  if ((tests_to_run == AllTests) || (tests_to_run & Ackley)) {
+    unified_bounds_swarm_test<PSOClass>(
+        "ackley", particle_size, ackley_iterations, tests_number, 20, -32.768,
+        32.768, ackleyfunction, minimum, test_class_name);
+  }
+  if ((tests_to_run == AllTests) || (tests_to_run & Griewank)) {
+    unified_bounds_swarm_test<PSOClass>(
+        "griewank", particle_size, griewank_iterations, tests_number, 50, -600,
+        600, griewankfunction, minimum, test_class_name);
+  }
+  if ((tests_to_run == AllTests) || (tests_to_run & Rastrigin)) {
+    unified_bounds_swarm_test<PSOClass>(
+        "rastrigin", particle_size, rastrigin_iterations, tests_number, 30,
+        -5.12, 5.12, rastriginfunction, minimum, test_class_name);
+  }
+  if ((tests_to_run == AllTests) || (tests_to_run & Rosenbrock)) {
+    unified_bounds_swarm_test<PSOClass>(
+        "rosenbrock", particle_size, rosenbrock_iterations, tests_number, 30,
+        -5, 10, rosenbrockfunction, minimum, test_class_name);
+  }
   auto end = std::chrono::steady_clock::now();
   auto time_span = end - start;
   auto s = std::chrono::duration_cast<std::chrono::seconds>(time_span).count();
@@ -182,15 +188,12 @@ int _cdecl main() {
   // different functions have different tests
   auto tests_number = 10;
   auto particle_size = 30;
-  whole_test<pso::ClassicGbestPSO<double>, 5000, 10000, 10000, 10000, 10000>(
-      "with std random - gbest p" + std::to_string(particle_size), tests_number,
-      particle_size);
   whole_test<pso::ClassicGbestMKLPSO, 5000, 10000, 10000, 10000, 10000>(
-      "with MKL - gbest p" + std::to_string(particle_size), tests_number,
+      "with MKL - gbest p" + std::to_string(particle_size), AllTests, tests_number,
       particle_size);
-  // whole_test<pso::ClassicLbestMKLPSO, 5000, 10000, 10000, 10000, 10000>(
-  //    "with MKL - lbest p" + std::to_string(particle_size), tests_number,
-  //    particle_size);
+  whole_test<pso::ClassicLbestMKLPSO, 5000, 10000, 10000, 10000, 10000>(
+      "with MKL - lbest p" + std::to_string(particle_size), AllTests, tests_number,
+      particle_size);
   std::cout << "Test end.\n";
   return 0;
 }
