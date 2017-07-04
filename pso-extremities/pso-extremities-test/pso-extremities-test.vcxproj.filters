@@ -21,7 +21,10 @@
     <ClInclude Include="print_helpers.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="pso-mkl.h">
+    <ClInclude Include="random_generators.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="pso-types.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
