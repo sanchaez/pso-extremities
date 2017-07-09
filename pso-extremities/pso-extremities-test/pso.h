@@ -11,18 +11,18 @@
 namespace pso
 {
 template <typename value_t>
-dimention_container_t<value_t> unified_bounds(
+dimension_container_t<value_t> unified_bounds(
     const dimension_limit_t<value_t>& limit,
     const int size)
 {
-    return dimention_container_t<value_t>(limit, size);
+    return dimension_container_t<value_t>(limit, size);
 }
 template <typename value_t>
-dimention_container_t<value_t> unified_bounds(const value_t left_bound,
+dimension_container_t<value_t> unified_bounds(const value_t left_bound,
                                               const value_t right_bound,
                                               const int size)
 {
-    return dimention_container_t<value_t>(std::make_pair(left_bound, right_bound),
+    return dimension_container_t<value_t>(std::make_pair(left_bound, right_bound),
                                           size);
 }
 
@@ -53,7 +53,7 @@ class BasePSO
 public:
     BasePSO(const predicate_t<value_t>& predicate,
             const int particles_number,
-            const dimention_container_t<value_t>& boundaries,
+            const dimension_container_t<value_t>& boundaries,
             const function_t<value_t>& function)
         : m_bounds(boundaries),
         m_compare(predicate),
@@ -73,10 +73,10 @@ protected:
     }
     bool in_bounds(container_t<value_t>& point_coordinates)
     {
-        for (int i = 0; i<m_dimensions_number; ++i)
+        for (int i = 0; i < m_dimensions_number; ++i)
         {
-            if (m_bounds[i].first>point_coordinates[i]||
-                m_bounds[i].second<point_coordinates[i])
+            if (m_bounds[i].first > point_coordinates[i] ||
+                m_bounds[i].second < point_coordinates[i])
             {
                 return false;
             }
@@ -86,13 +86,13 @@ protected:
     // checks if point is in bounds and retuns it to the edge
     void bounds_return(container_t<value_t>& point_coordinates)
     {
-        for (int i = 0; i<m_dimensions_number; ++i)
+        for (int i = 0; i < m_dimensions_number; ++i)
         {
-            if (m_bounds[i].first>point_coordinates[i])
+            if (m_bounds[i].first > point_coordinates[i])
             {
                 point_coordinates[i] = m_bounds[i].first;
             }
-            else if (m_bounds[i].second<point_coordinates[i])
+            else if (m_bounds[i].second < point_coordinates[i])
             {
                 point_coordinates[i] = m_bounds[i].second;
             }
@@ -103,7 +103,7 @@ protected:
     int m_dimensions_number;
     function_t<value_t> m_function;
     predicate_t<value_t> m_compare;
-    dimention_container_t<value_t> m_bounds;
+    dimension_container_t<value_t> m_bounds;
     particle_container_t<value_t> m_particles;
 };
 
@@ -119,20 +119,20 @@ public:
 #pragma omp parallel
         {
 #pragma omp for
-            for (int particle = 0; particle<m_particles_number; ++particle)
+            for (int particle = 0; particle < m_particles_number; ++particle)
             {
                 m_particles[particle].x.resize(m_dimensions_number);
                 m_particles[particle].v.resize(m_dimensions_number);
                 m_particles[particle].best.resize(m_dimensions_number);
             }
 
-            for (int dimension = 0; dimension<m_dimensions_number; ++dimension)
+            for (int dimension = 0; dimension < m_dimensions_number; ++dimension)
             {
                 generator_t dimension_distribution(m_bounds[dimension].first,
                                                    m_bounds[dimension].second);
                 generator_t velocity_distribution(0, m_bounds[dimension].second);
 #pragma omp for schedule(dynamic)
-                for (int particle = 0; particle<m_particles_number; ++particle)
+                for (int particle = 0; particle < m_particles_number; ++particle)
                 {
                     m_particles[particle].x[dimension] = dimension_distribution();
                     m_particles[particle].v[dimension] = velocity_distribution();
@@ -151,7 +151,7 @@ class ClassicGbestPSO : public AbstractPSO<value_t, generator_t>
 public:
     ClassicGbestPSO(const predicate_t<value_t>& predicate,
                     const int particles_number,
-                    const dimention_container_t<value_t>& boundaries,
+                    const dimension_container_t<value_t>& boundaries,
                     const function_t<value_t>& function)
         : AbstractPSO<value_t>(predicate, particles_number, boundaries, function),
 
@@ -164,10 +164,10 @@ public:
         initialize_particles();
 #pragma omp parallel
         {
-            for (int i = 0; i<iterations_max; ++i)
+            for (int i = 0; i < iterations_max; ++i)
             {
 #pragma omp for
-                for (int j = 0; j<m_particles_number; ++j)
+                for (int j = 0; j < m_particles_number; ++j)
                 {
                     m_particles[j] = update_particle(m_particles[j]);
                 }
@@ -195,9 +195,9 @@ private:
         container_t<value_t> eps2(m_eps_generator.random_vector(m_dimensions_number));
 
 
-        new_particle.v = value_t(0.72984) * (p.v+(p.best-p.x) * eps1 * 2.05+
-            (m_gbest-p.x) * eps2 * 2.05);
-        new_particle.x = new_particle.v+p.x;
+        new_particle.v = value_t(0.72984) * (p.v + (p.best - p.x) * eps1 * 2.05 +
+            (m_gbest - p.x) * eps2 * 2.05);
+        new_particle.x = new_particle.v + p.x;
         if (compare_function_values(new_particle.x, p.best))
         {
             new_particle.best = new_particle.x;
@@ -213,7 +213,7 @@ private:
     void update_best_ever()
     {
 #pragma omp parallel for
-        for (int i = 0; i<m_particles_number; ++i)
+        for (int i = 0; i < m_particles_number; ++i)
         {
             if (compare_function_values(m_particles[i].best, m_gbest))
             {

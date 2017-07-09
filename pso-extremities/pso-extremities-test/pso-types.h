@@ -8,7 +8,7 @@ using container_t = std::valarray<value_t>;
 template <typename value_t>
 using dimension_limit_t = std::pair<value_t, value_t>;
 template <typename value_t>
-using dimention_container_t = container_t<dimension_limit_t<value_t>>;
+using dimension_container_t = container_t<dimension_limit_t<value_t>>;
 template <typename value_t>
 using predicate_t = std::function<bool(value_t, value_t)>;
 template <typename value_t>

@@ -40,7 +40,7 @@ public:
     {
         container_t<T> vector(T(0), size);
 #pragma omp parallel for
-        for (int i = 0; i<size; ++i)
+        for (int i = 0; i < size; ++i)
         {
             vector[i] = m_distribution(m_generator);
         }
