@@ -1,60 +1,54 @@
 /* PSO interface */
 
 #pragma once
-#include <cmath>
-#include <functional>
-#include <iostream>
-#include <valarray>
+
 #include "pso-types.h"
 #include "random_generators.h"
 
+#include <algorithm>
+
 namespace pso
 {
-template <typename value_t>
-dimension_container_t<value_t> unified_bounds(
-    const dimension_limit_t<value_t>& limit,
-    const int size)
-{
-    return dimension_container_t<value_t>(limit, size);
-}
-template <typename value_t>
-dimension_container_t<value_t> unified_bounds(const value_t left_bound,
-                                              const value_t right_bound,
+
+dimension_container_t unified_bounds(const dimension_limit_t& limit,
                                               const int size)
 {
-    return dimension_container_t<value_t>(std::make_pair(left_bound, right_bound),
-                                          size);
+    return dimension_container_t(size, limit);
 }
 
-template <typename value_t>
+dimension_container_t unified_bounds(const double left_bound,
+                                              const double right_bound,
+                                              const int size)
+{
+    return dimension_container_t(size, std::make_pair(left_bound, right_bound));
+}
+
 struct Particle
 {
-    Particle() : v(0), x(0), best(0), best_ever(0) {}
+    Particle() {}
     Particle(const container_t<value_t>& coordinates, const value_t& velocity)
         : x(coordinates),
         best(coordinates),
-        best_ever(coordinates),
-        v(velocity)
+        //best_ever(coordinates),
+        v(coordinates.size(), velocity)
     {
     }
     container_t<value_t> v;
     container_t<value_t> x;
     container_t<value_t> best;
-    container_t<value_t> best_ever;
 };
 
-template <typename value_t>
-using particle_container_t = container_t<Particle<value_t>>;
-/// Abstract class for all particle swarms
+using particle_container_t = container_t<Particle>;
 
-template <typename value_t>
-class BasePSO
+/// Abstract class for all particle swarms
+template <typename PSOClass>
+class AbstractPSO
 {
 public:
-    BasePSO(const predicate_t<value_t>& predicate,
-            const int particles_number,
-            const dimension_container_t<value_t>& boundaries,
-            const function_t<value_t>& function)
+    AbstractPSO(const predicate_t& predicate,
+                const int particles_number,
+                const dimension_container_t& boundaries,
+                const function_t& function)
         : m_bounds(boundaries),
         m_compare(predicate),
         m_dimensions_number(boundaries.size()),
@@ -64,13 +58,21 @@ public:
     {
     }
 
+    value_coordinates_t operator()(const int iterations_max)
+    {
+        return static_cast<PSOClass*>(this)->__impl_function(iterations_max);
+    };
+
 protected:
+    // used to call compare function
+    
     inline constexpr bool compare_function_values(
         const container_t<value_t>& a,
         const container_t<value_t>& b) const
     {
         return m_compare(m_function(a), m_function(b));
     }
+
     bool in_bounds(container_t<value_t>& point_coordinates)
     {
         for (int i = 0; i < m_dimensions_number; ++i)
@@ -83,6 +85,7 @@ protected:
         }
         return true;
     }
+
     // checks if point is in bounds and retuns it to the edge
     void bounds_return(container_t<value_t>& point_coordinates)
     {
@@ -99,67 +102,55 @@ protected:
         }
     }
 
-    int m_particles_number;
-    int m_dimensions_number;
-    function_t<value_t> m_function;
-    predicate_t<value_t> m_compare;
-    dimension_container_t<value_t> m_bounds;
-    particle_container_t<value_t> m_particles;
-};
-
-template <typename value_t, class generator_t = StdGenerator<value_t>>
-class AbstractPSO : public BasePSO<value_t>
-{
-public:
-    using BasePSO<value_t>::BasePSO;
-    virtual void initialize_particles()
+    void initialize_particles()
     {
         m_particles.resize(m_particles_number);
-        // init every dimension separately
 #pragma omp parallel
         {
-#pragma omp for
-            for (int particle = 0; particle < m_particles_number; ++particle)
-            {
-                m_particles[particle].x.resize(m_dimensions_number);
-                m_particles[particle].v.resize(m_dimensions_number);
-                m_particles[particle].best.resize(m_dimensions_number);
-            }
-
             for (int dimension = 0; dimension < m_dimensions_number; ++dimension)
             {
-                generator_t dimension_distribution(m_bounds[dimension].first,
+                StdGenerator<value_t> dimension_distribution(m_bounds[dimension].first,
                                                    m_bounds[dimension].second);
-                generator_t velocity_distribution(0, m_bounds[dimension].second);
-#pragma omp for schedule(dynamic)
+                StdGenerator<value_t> velocity_distribution(0, m_bounds[dimension].second);
+#pragma omp for
                 for (int particle = 0; particle < m_particles_number; ++particle)
                 {
-                    m_particles[particle].x[dimension] = dimension_distribution();
-                    m_particles[particle].v[dimension] = velocity_distribution();
-                    m_particles[particle].best[dimension] =
-                        m_particles[particle].x[dimension];
+                    dimension_distribution.random_vector(m_dimensions_number, m_particles[particle].x);
+                    velocity_distribution.random_vector(m_dimensions_number, m_particles[particle].v);
+                    m_particles[particle].best = m_particles[particle].x;
                 }
             }
         }
     }
-    virtual value_coordinates_t<value_t> operator()(const int iterations_max) = 0;
+
+    int m_particles_number;
+    int m_dimensions_number;
+
+    function_t m_function;
+    predicate_t m_compare;
+    dimension_container_t m_bounds;
+    particle_container_t m_particles;
 };
 
-template <typename value_t, class generator_t = StdGenerator<value_t>>
-class ClassicGbestPSO : public AbstractPSO<value_t, generator_t>
+
+template <typename generator_t = StdGenerator<value_t>, int c1 = 2.05, int c2 = 2.05>
+class GbestPSO : public AbstractPSO<GbestPSO<generator_t, c1, c2>>
 {
 public:
-    ClassicGbestPSO(const predicate_t<value_t>& predicate,
-                    const int particles_number,
-                    const dimension_container_t<value_t>& boundaries,
-                    const function_t<value_t>& function)
-        : AbstractPSO<value_t>(predicate, particles_number, boundaries, function),
-
-        m_eps_generator(0, 1)
+    using BasePSO = AbstractPSO<GbestPSO<generator_t, c1, c2>>;
+    GbestPSO(const predicate_t& predicate,
+             const int particles_number,
+             const dimension_container_t& boundaries,
+             const function_t& function)
+        : BasePSO(predicate, particles_number, boundaries, function),
+        m_eps_gen(0, 1)
     {
     }
 
-    value_coordinates_t<value_t> operator()(const int iterations_max)
+private:
+    friend BasePSO;
+
+    value_coordinates_t __impl_function(const int iterations_max)
     {
         initialize_particles();
 #pragma omp parallel
@@ -169,45 +160,49 @@ public:
 #pragma omp for
                 for (int j = 0; j < m_particles_number; ++j)
                 {
-                    m_particles[j] = update_particle(m_particles[j]);
+                    update_particle(m_particles[j], m_eps_gen.random_vector_new(2 * m_dimensions_number));
                 }
+
 #pragma omp single
-                update_best_ever();
+                {
+                    update_best_ever();
+                    m_eps_gen.reset();
+                }
             }
         }
         return std::make_pair(m_function(m_gbest), m_gbest);
     }
 
-
-    void initialize_particles()
+protected:
+    inline void initialize_particles()
     {
-        AbstractPSO::initialize_particles();
-        // init gbest
+        BasePSO::initialize_particles();
+        init_gbest();
+    }
+
+    inline void init_gbest()
+    {
         m_gbest = m_particles[0].x;
         update_best_ever();
     }
 
-private:
-    Particle<value_t> update_particle(const Particle<value_t>& p)
+
+    inline void update_particle(Particle& p,
+                                const container_t<value_t>& eps)
     {
-        Particle<value_t> new_particle;
-        container_t<value_t> eps1(m_eps_generator.random_vector(m_dimensions_number));
-        container_t<value_t> eps2(m_eps_generator.random_vector(m_dimensions_number));
-
-
-        new_particle.v = value_t(0.72984) * (p.v + (p.best - p.x) * eps1 * 2.05 +
-            (m_gbest - p.x) * eps2 * 2.05);
-        new_particle.x = new_particle.v + p.x;
-        if (compare_function_values(new_particle.x, p.best))
+#pragma omp parallel for
+        for (int i = 0; i < m_dimensions_number; ++i)
         {
-            new_particle.best = new_particle.x;
-        }
-        else
-        {
-            new_particle.best = p.best;
+            p.v[i] += (p.best[i] - p.x[i]) * eps[i] * c1
+                + (m_gbest[i] - p.x[i]) * eps[m_dimensions_number + i] * c2;
+            p.v[i] *= value_t(0.72984);
+            p.x[i] += p.v[i];
         }
 
-        return new_particle;
+        if (compare_function_values(p.x, p.best))
+        {
+            p.best = p.x;
+        }
     }
 
     void update_best_ever()
@@ -222,11 +217,11 @@ private:
             }
         }
     }
-
+    generator_t m_eps_gen;
     container_t<value_t> m_gbest;
-
-    container_t<value_t> eps1;
-    container_t<value_t> eps2;
-    generator_t m_eps_generator;
 };
+
+using ClassicGbestPSO = GbestPSO<StdGenerator<double>>;
+
 }  // namespace pso
+

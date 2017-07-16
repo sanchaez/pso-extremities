@@ -1,18 +1,21 @@
 #include "pso.h"
+#include "print_helpers.h"
 #define _USE_MATH_DEFINES
+
 #include <math.h>
 #include <chrono>
 #include <fstream>
 #include <iomanip>
 #include <sstream>
 #include <string>
-#include "print_helpers.h"
+#include <algorithm>
 
-#define SPHERE_ITERATIONS 5000
-#define ACKLEY_ITERATIONS 10000
-#define GRIEWANK_ITERATIONS 10000
-#define RASTRIGIN_ITERATIONS 10000
-#define ROSENBROCK_ITERATIONS 10000
+
+#define SPHERE_ITERATIONS 6000
+#define ACKLEY_ITERATIONS 6000
+#define GRIEWANK_ITERATIONS 6000
+#define RASTRIGIN_ITERATIONS 6000
+#define ROSENBROCK_ITERATIONS 6000
 
 constexpr bool minimum(double a1, double a2)
 {
@@ -21,25 +24,47 @@ constexpr bool minimum(double a1, double a2)
 
 double spherefunction(const pso::container_t<double>& x)
 {
-    return (x * x).sum();
+    const int n_size = x.size();
+    double acc = 0.0;
+
+#pragma omp parallel for reduction(+ : acc)
+    for (int i = 0; i < n_size; ++i)
+    {
+        const auto a = x[i];
+        acc += a * a;
+    }
+
+    return acc;
 }
 
 double ackleyfunction(const pso::container_t<double>& x)
 {
-    const double n = double(x.size());
-    const double first_sum =
-        -20.0 * std::exp(-0.2 * std::sqrt((x * x).sum() / n));
-    const double second_sum =
-        -20.0 - M_E + std::exp(std::cos(2.0 * M_PI * x).sum() / n);
+    const int n_size = x.size();
+    const double n = double(n_size);
+
+    double first_sum = -20.0 * std::exp(-0.2 * std::sqrt(spherefunction(x) / n));
+    double second_sum = 0.0;
+
+    const double pi2 = 2.0 * M_PI;
+#pragma omp parallel for reduction(+ : second_sum)
+    for (int i = 0; i < n_size; ++i)
+    {
+        const auto a = pi2 * x[i];
+        second_sum += std::cos(a);
+    }
+    second_sum = -20.0 - M_E + std::exp(second_sum / n);
+
     return first_sum - second_sum;
 }
 
 double griewankfunction(const pso::container_t<double>& x)
 {
-    const double sum = (x * x).sum() / 4000.0;
+    const int n_size = x.size();
+    const double sum = spherefunction(x) / 4000.0;
     double product = 1.0;
+
 #pragma omp parallel for reduction(* : product)
-    for (int i = 0; i < (int) x.size(); ++i)
+    for (int i = 0; i < n_size; ++i)
     {
         product *= std::cos(x[i] / double(i + 1));
     }
@@ -48,17 +73,27 @@ double griewankfunction(const pso::container_t<double>& x)
 
 double rastriginfunction(const pso::container_t<double>& x)
 {
-    return 10.0 * x.size() + (x * x - 10.0 * std::cos(2 * M_PI * x)).sum();
+    const int n_size = x.size();
+    double acc = 10.0 * double(n_size) + spherefunction(x);
+
+#pragma omp parallel for reduction(+ : acc)
+    for (int i = 0; i < n_size; ++i)
+    {
+        acc += -10.0 * std::cos(2 * M_PI * x[i]);
+    }
+    return acc;
 }
 
 double rosenbrockfunction(const pso::container_t<double> x)
 {
+    const int n_size = x.size();
     double sum = 0.0;
+
 #pragma omp parallel for reduction(+ : sum)
-    for (int i = 0; i < (int) x.size() - 1; ++i)
+    for (int i = 0; i < n_size; ++i)
     {
-        auto a = (x[i + 1] - x[i] * x[i]);
-        auto b = (x[i] - 1);
+        const auto a = x[i + 1] - x[i] * x[i];
+        const auto b = x[i] - 1;
         sum += 100 * a * a + b * b;
     }
     return sum;
@@ -73,6 +108,35 @@ void print_sstream_to_file_cout_clear(std::stringstream& ss,
     ss.clear();
 }
 
+double average(const pso::container_t<double>& x, double div)
+{
+    const int n_size = x.size();
+    double acc = 0.0;
+
+#pragma omp parallel for reduction(+ : acc)
+    for (int i = 0; i < n_size; ++i)
+    {
+        acc += x[i];
+    }
+    return acc / div;
+}
+
+double standard_error(const pso::container_t<double>& x, double avg, double n)
+{
+    const int n_size = x.size();
+    double acc = 0.0;
+    double buf = 0.0;
+
+#pragma omp parallel for reduction(+ : acc)
+    for (int i = 0; i < n_size; ++i)
+    {
+        buf = x[i] - avg;
+        acc += buf * buf;
+    }
+
+    return sqrt(1 / double(n - 1) * acc / sqrt(n));
+}
+
 template <class PSOClass>
 void unified_bounds_swarm_test(
     const std::string& test_name,
@@ -82,8 +146,8 @@ void unified_bounds_swarm_test(
     const int dimensions,
     double bounds_low,
     const double bounds_high,
-    const pso::function_t<double>& function,
-    const pso::predicate_t<double>& predicate = minimum,
+    const pso::function_t& function,
+    const pso::predicate_t& predicate = minimum,
     const std::string& name_prefix = "")
 {
     auto bounds = pso::unified_bounds(bounds_low, bounds_high, particle_size);
@@ -98,7 +162,7 @@ void unified_bounds_swarm_test(
     print_sstream_to_file_cout_clear(output, test_file);
 
     PSOClass particle_swarm(minimum, particle_size, bounds, function);
-    pso::container_t<double> results(tests_number);
+    pso::container_t<pso::value_t> results(tests_number);
     auto pretty_int_width = 1;
     auto x = tests_number;
     while (x /= 10)
@@ -124,13 +188,12 @@ void unified_bounds_swarm_test(
         print_sstream_to_file_cout_clear(output, test_file);
     }
     auto end_general = std::chrono::steady_clock::now();
+
     // determine best
-    double results_best = results.min();
-    double results_worst = results.max();
-    double results_average = results.sum() / tests_number;
-    double std_err = sqrt(1 / double(tests_number - 1) *
-                          std::pow((results - results_average), 2.0).sum()) /
-        sqrt(tests_number);
+    auto results_best = *std::min_element(std::begin(results), std::end(results));
+    auto results_worst = *std::max_element(std::begin(results), std::end(results));
+    auto results_average = average(results, tests_number);
+    auto std_err = standard_error(results, results_average, tests_number);
     // print results
     auto time_span_general = end_general - start_general;
     auto s_general =
@@ -227,9 +290,11 @@ int _cdecl main()
     // different functions have different tests
     auto tests_number = 10;
     auto particle_size = 30;
-    whole_test<pso::ClassicGbestPSO<double>>(
+
+    whole_test<pso::ClassicGbestPSO>(
         "gbest p" + std::to_string(particle_size), AllTests,
         tests_number, particle_size);
-    std::cout << "Test end.\n";
+
+    std::cout << "Test end." << std::endl;
     return 0;
 }
