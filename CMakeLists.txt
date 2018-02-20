@@ -14,6 +14,14 @@ endif()
 
 include_directories(${CMAKE_SOURCE_DIR}/include)
 
+# different flags for builds
+set(CMAKE_BUILD_TYPE Release)
+
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
+SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -g")
+SET(CMAKE_CXX_FLAGS_RELEASE "-O3 -ffast-math")
+SET(CMAKE_CXX_FLAGS_DEBUG  "-Od -g")
+
 # test executable
 add_executable(interactive_test ${CMAKE_SOURCE_DIR}/test/test.cpp)
 
