@@ -37,11 +37,11 @@ public:
     }
 };
 
-template <typename T,
+ template <typename T = pso::value_t,
     class generator_t = std::mt19937_64>
     class StdGenerator : public RandomGenerator<T, StdGenerator<T, generator_t>>
 {
-    friend RandomGenerator;
+    friend RandomGenerator<T, StdGenerator<T, generator_t>>;
 
     void __reset()
     {

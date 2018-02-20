@@ -7,7 +7,7 @@
 
 namespace pso
 {
-using value_t = double;
+using value_t = long double;
 template <typename value_t>
 using container_t = std::vector<value_t>;
 

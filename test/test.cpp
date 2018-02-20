@@ -17,15 +17,15 @@
 #define RASTRIGIN_ITERATIONS 6000
 #define ROSENBROCK_ITERATIONS 6000
 
-constexpr bool minimum(double a1, double a2)
+constexpr bool minimum(pso::value_t a1, pso::value_t a2)
 {
     return a1 < a2;
 }
 
-double spherefunction(const pso::container_t<double>& x)
+pso::value_t spherefunction(const pso::container_t<pso::value_t>& x)
 {
     const int n_size = x.size();
-    double acc = 0.0;
+    pso::value_t acc = 0.0;
 
 #pragma omp parallel for reduction(+ : acc)
     for (int i = 0; i < n_size; ++i)
@@ -37,15 +37,15 @@ double spherefunction(const pso::container_t<double>& x)
     return acc;
 }
 
-double ackleyfunction(const pso::container_t<double>& x)
+pso::value_t ackleyfunction(const pso::container_t<pso::value_t>& x)
 {
     const int n_size = x.size();
-    const double n = double(n_size);
+    const pso::value_t n = pso::value_t(n_size);
 
-    double first_sum = -20.0 * std::exp(-0.2 * std::sqrt(spherefunction(x) / n));
-    double second_sum = 0.0;
+    pso::value_t first_sum = -20.0 * std::exp(-0.2 * std::sqrt(spherefunction(x) / n));
+    pso::value_t second_sum = 0.0;
 
-    const double pi2 = 2.0 * M_PI;
+    const pso::value_t pi2 = 2.0 * M_PI;
 #pragma omp parallel for reduction(+ : second_sum)
     for (int i = 0; i < n_size; ++i)
     {
@@ -57,24 +57,24 @@ double ackleyfunction(const pso::container_t<double>& x)
     return first_sum - second_sum;
 }
 
-double griewankfunction(const pso::container_t<double>& x)
+pso::value_t griewankfunction(const pso::container_t<pso::value_t>& x)
 {
     const int n_size = x.size();
-    const double sum = spherefunction(x) / 4000.0;
-    double product = 1.0;
+    const pso::value_t sum = spherefunction(x) / 4000.0;
+    pso::value_t product = 1.0;
 
 #pragma omp parallel for reduction(* : product)
     for (int i = 0; i < n_size; ++i)
     {
-        product *= std::cos(x[i] / double(i + 1));
+        product *= std::cos(x[i] / pso::value_t(i + 1));
     }
     return sum - product + 1;
 }
 
-double rastriginfunction(const pso::container_t<double>& x)
+pso::value_t rastriginfunction(const pso::container_t<pso::value_t>& x)
 {
     const int n_size = x.size();
-    double acc = 10.0 * double(n_size) + spherefunction(x);
+    pso::value_t acc = 10.0 * pso::value_t(n_size) + spherefunction(x);
 
 #pragma omp parallel for reduction(+ : acc)
     for (int i = 0; i < n_size; ++i)
@@ -84,10 +84,10 @@ double rastriginfunction(const pso::container_t<double>& x)
     return acc;
 }
 
-double rosenbrockfunction(const pso::container_t<double> x)
+pso::value_t rosenbrockfunction(const pso::container_t<pso::value_t> x)
 {
     const int n_size = x.size();
-    double sum = 0.0;
+    pso::value_t sum = 0.0;
 
 #pragma omp parallel for reduction(+ : sum)
     for (int i = 0; i < n_size; ++i)
@@ -108,10 +108,10 @@ void print_sstream_to_file_cout_clear(std::stringstream& ss,
     ss.clear();
 }
 
-double average(const pso::container_t<double>& x, double div)
+pso::value_t average(const pso::container_t<pso::value_t>& x, pso::value_t div)
 {
     const int n_size = x.size();
-    double acc = 0.0;
+    pso::value_t acc = 0.0;
 
 #pragma omp parallel for reduction(+ : acc)
     for (int i = 0; i < n_size; ++i)
@@ -121,11 +121,11 @@ double average(const pso::container_t<double>& x, double div)
     return acc / div;
 }
 
-double standard_error(const pso::container_t<double>& x, double avg, double n)
+pso::value_t standard_error(const pso::container_t<pso::value_t>& x, pso::value_t avg, pso::value_t n)
 {
     const int n_size = x.size();
-    double acc = 0.0;
-    double buf = 0.0;
+    pso::value_t acc = 0.0;
+    pso::value_t buf = 0.0;
 
 #pragma omp parallel for reduction(+ : acc)
     for (int i = 0; i < n_size; ++i)
@@ -134,7 +134,7 @@ double standard_error(const pso::container_t<double>& x, double avg, double n)
         acc += buf * buf;
     }
 
-    return sqrt(1 / double(n - 1) * acc / sqrt(n));
+    return sqrt(1 / pso::value_t(n - 1) * acc / sqrt(n));
 }
 
 template <class PSOClass>
@@ -144,8 +144,8 @@ void unified_bounds_swarm_test(
     const int iterations_number,
     const int tests_number,
     const int dimensions,
-    double bounds_low,
-    const double bounds_high,
+    pso::value_t bounds_low,
+    const pso::value_t bounds_high,
     const pso::function_t& function,
     const pso::predicate_t& predicate = minimum,
     const std::string& name_prefix = "")
@@ -284,7 +284,7 @@ template <class PSOClass,
         << std::endl;
 }
 
-int _cdecl main()
+int main(int argc, char *argv[])
 {
     std::cout << "Test begin.\n\n";
     // different functions have different tests

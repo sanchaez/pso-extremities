@@ -16,8 +16,8 @@ dimension_container_t unified_bounds(const dimension_limit_t& limit,
     return dimension_container_t(size, limit);
 }
 
-dimension_container_t unified_bounds(const double left_bound,
-                                              const double right_bound,
+dimension_container_t unified_bounds(const value_t left_bound,
+                                              const value_t right_bound,
                                               const int size)
 {
     return dimension_container_t(size, std::make_pair(left_bound, right_bound));
@@ -66,7 +66,7 @@ public:
 protected:
     // used to call compare function
     
-    inline constexpr bool compare_function_values(
+    constexpr bool compare_function_values(
         const container_t<value_t>& a,
         const container_t<value_t>& b) const
     {
@@ -133,7 +133,7 @@ protected:
 };
 
 
-template <typename generator_t = StdGenerator<value_t>, int c1 = 2.05, int c2 = 2.05>
+template <typename generator_t = StdGenerator<value_t>, int c1 = 2, int c2 = 2>
 class GbestPSO : public AbstractPSO<GbestPSO<generator_t, c1, c2>>
 {
 public:
@@ -147,8 +147,13 @@ public:
     {
     }
 
-private:
+protected:
     friend BasePSO;
+    using BasePSO::m_particles;
+    using BasePSO::m_dimensions_number;
+    using BasePSO::compare_function_values;
+    using BasePSO::m_particles_number;
+    using BasePSO::m_function;
 
     value_coordinates_t __impl_function(const int iterations_max)
     {
@@ -191,10 +196,10 @@ protected:
                                 const container_t<value_t>& eps)
     {
 #pragma omp parallel for
-        for (int i = 0; i < m_dimensions_number; ++i)
+        for (int i = 0; i < this->m_dimensions_number; ++i)
         {
             p.v[i] += (p.best[i] - p.x[i]) * eps[i] * c1
-                + (m_gbest[i] - p.x[i]) * eps[m_dimensions_number + i] * c2;
+                + (m_gbest[i] - p.x[i]) * eps[this->m_dimensions_number + i] * c2;
             p.v[i] *= value_t(0.72984);
             p.x[i] += p.v[i];
         }
@@ -221,7 +226,7 @@ protected:
     container_t<value_t> m_gbest;
 };
 
-using ClassicGbestPSO = GbestPSO<StdGenerator<double>>;
+using ClassicGbestPSO = GbestPSO<>;
 
 }  // namespace pso
 
