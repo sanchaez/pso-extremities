@@ -1,2 +1,8 @@
 # text output
 tests/
+
+# build directories
+build*/
+
+# kdevelop files and folders
+*kdev4
